@@ -27,6 +27,7 @@ component provides App requires io.Output out, net.TCPSocket, net.TCPServerSocke
 			assembly.removeComp(new String[](
 				new String("./data/adt/ListCPPropagate.o"),
 				new String("./data/adt/ListCPAlternate.o"),
+				new String("./data/adt/ListCPMixedPropagate.o"),
 				new String("./data/adt/ListCPSharding.o")))
 			out.println("$(debugMSG) Remote Component $(remoteP) Started! ")
 			running = true

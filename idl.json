@@ -1,0 +1,47 @@
+{
+	"interface_path": "./List.dn",
+	"output_path": "./distributor/data/adt/",
+	"methods": {
+		"add": {
+			"impact": true,
+			"attrs": ["content"],
+			"attrs_type": ["collection"]
+		},
+		"remove": {
+			"impact": true,
+			"attrs": ["content"],
+			"attrs_type": ["collection"]
+		},
+		"getFirst": {
+			"impact": false
+		},
+		"getLength": {
+			"impact": false
+		},
+		"getContents": {
+			"impact": false
+		},
+		"update": {
+			"impact": true,
+			"attrs": ["content"],
+			"attrs_type": ["collection"]
+		},
+		"getNext": {
+			"impact": false
+		},
+	
+		"isEnd": {
+			"impact": false
+		},
+	
+		"getIndex": {
+			"impact": false
+		},
+	
+		"setIndex": {
+			"impact": true,
+			"attrs": ["content"],
+			"attrs_type": ["collection"]
+		}
+	}
+}

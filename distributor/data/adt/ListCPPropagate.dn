@@ -34,8 +34,8 @@ const char CLEAR_LIST[]   = "clearList"
 const char LOCALHOST[] = "localhost"
 
 component provides List:heap(Destructor, AdaptEvents) requires data.json.JSONEncoder parser,
-	net.TCPSocket, net.TCPServerSocket, data.StringUtil strUtil, io.Output out, data.IntUtil iu {
-
+	net.TCPSocket, data.StringUtil strUtil, io.Output out, data.IntUtil iu, net.TCPServerSocket
+{
 	IPAddr remoteDistsIps[] = null
 	IPAddr remoteListsIps[] = null
 	Mutex remoteListsIpsLock = new Mutex()
@@ -71,7 +71,7 @@ component provides List:heap(Destructor, AdaptEvents) requires data.json.JSONEnc
 			connectAndSend(remoteDistsIps[i], msg, true)
 		}
 	}
-
+	
 	Response parseResponse(char content[]) {
 		String helper[] = strUtil.explode(content, "!")
 		Response response
@@ -127,19 +127,18 @@ component provides List:heap(Destructor, AdaptEvents) requires data.json.JSONEnc
 		}
 		return resp
 	}
-
-  void makeGroupRequest(char content[]) {
+	
+  	void makeGroupRequest(char content[]) {
 		setupRemoteListsIPs()
-	    IPAddr addr = null
-	    for (int i = 0; i < remoteListsIps.arrayLength; i++) {
-	      addr = remoteListsIps[i]
-	      asynch::connectAndSend(addr, content, true)
-	    }
+		IPAddr addr = null
+		for (int i = 0; i < remoteListsIps.arrayLength; i++) {
+		  addr = remoteListsIps[i]
+		  asynch::connectAndSend(addr, content, true)
+		}
 	}
-
+	
 	Response makeRequest(char content[]) {
 		setupRemoteListsIPs()
-		Response resp = null
 		IPAddr addr = null
 		mutex(remoteListsIpsLock) {
 			if (remoteListsIps.arrayLength > 1) {
@@ -151,50 +150,50 @@ component provides List:heap(Destructor, AdaptEvents) requires data.json.JSONEnc
 		return connectAndSend(addr, content, true)
 	}
 
-	void List:add(Data item) {
-		//out.println("Estamos aqui!")
+	void List:add (store Data item) {
 		Request request = new Request()
-		request.functionName = ADD
+		request.functionName = "add"
 		request.numParams = 1
+
 		char requestStr[] = parser.jsonFromData(request, null)
 		char param[] = parser.jsonFromData(item, null)
 		char content2[] = new char[](requestStr, "!", param, "\r\r\r\r")
+
 		makeGroupRequest(content2)
 	}
 
-	void List:remove(Data item) {
-		// TODO
+	void List:remove (Data item) {
+		Request request = new Request()
+		request.functionName = "remove"
+		request.numParams = 1
+
+		char requestStr[] = parser.jsonFromData(request, null)
+		char param[] = parser.jsonFromData(item, null)
+		char content2[] = new char[](requestStr, "!", param, "\r\r\r\r")
+
+		makeGroupRequest(content2)
 	}
 
-	void List:update(Data item, Data newVersion) {
-		// TODO
+	void List:update (Data item, store Data newVersion) {
+		Request request = new Request()
+		request.functionName = "update"
+		request.numParams = 2
+
+		char requestStr[] = parser.jsonFromData(request, null)
+		char param[] = parser.jsonFromData(item, null)
+		char content2[] = new char[](requestStr, "!", param, "\r\r\r\r")
+
+		makeGroupRequest(content2)
 	}
 
-	Data List:getFirst() {
-		// TODO
+	void List:setIndex (int n, store Data d) {
+	}
+
+	Data List:getFirst () {
 		return null
 	}
 
-	Data List:getNext() {
-		// TODO
-		return null
-	}
-
-	bool List:isEnd() {
-		// TODO
-		return false
-	}
-
-	Data List:getIndex(int ndx) {
-		// TODO
-		return null
-	}
-
-	void List:setIndex(int ndx, Data d) {
-		//TODO
-	}
-
-	int List:getLength() {
+	int List:getLength () {
 		Request request = new Request()
 		request.functionName = GET_LENGTH
 		request.numParams = 0
@@ -204,16 +203,30 @@ component provides List:heap(Destructor, AdaptEvents) requires data.json.JSONEnc
 		return iu.intFromString(response.value)
 	}
 
-	Data[] List:getContents(opt Type t) {
+	Data[] List:getContents (opt Type t) {
 		Request request = new Request()
-		request.functionName = GET_CONTENTS
+		request.functionName = "getContents"
 		request.numParams = 0
+
 		char requestStr[] = parser.jsonFromData(request, null)
 		char content2[] = new char[](requestStr, "!", " ", "\r\r\r\r")
 		Response response = makeRequest(content2)
 		Int nums[] = parser.jsonToArray(response.value, typeof(Int[]), null)
 		return nums
 	}
+
+	Data List:getNext () {
+		return null
+	}
+
+	bool List:isEnd () {
+		return false
+	}
+
+	Data List:getIndex (int n) {
+		return null
+	}
+
 
 	void buildFromArray(Data items[]) {
 		// TODO

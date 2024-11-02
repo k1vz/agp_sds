@@ -23,9 +23,6 @@ data IPAddr {
 data Int {
 	int i
 }
-data ShardState {
-	Int state[]
-}
 
 /* Available list operations */
 const char ADD[]          = "add"
@@ -37,10 +34,12 @@ const char CLEAR_LIST[]   = "clearList"
 const char LOCALHOST[] = "localhost"
 
 component provides List:heap(Destructor, AdaptEvents) requires data.json.JSONEncoder parser,
-	net.TCPSocket, data.StringUtil strUtil, io.Output out, data.IntUtil iu, hash.Multiplicative hash
+	net.TCPSocket, data.StringUtil strUtil, io.Output out, data.IntUtil iu, net.TCPServerSocket
 {
 	IPAddr remoteDistsIps[] = null
 	IPAddr remoteListsIps[] = null
+	Mutex remoteListsIpsLock = new Mutex()
+	int pointer = 0
 
 	void setupRemoteDistsIPs() {
 		if (remoteDistsIps == null) {
@@ -66,6 +65,13 @@ component provides List:heap(Destructor, AdaptEvents) requires data.json.JSONEnc
 		}
 	}
 
+	void sendMsgToRemoteDists(char msg[]) {
+		setupRemoteDistsIPs()
+		for (int i = 0; i < remoteDistsIps.arrayLength; i++) {
+			connectAndSend(remoteDistsIps[i], msg, true)
+		}
+	}
+	
 	Response parseResponse(char content[]) {
 		String helper[] = strUtil.explode(content, "!")
 		Response response
@@ -111,8 +117,8 @@ component provides List:heap(Destructor, AdaptEvents) requires data.json.JSONEnc
 		return true
 	}
 
-	Response makeRequestSharding(IPAddr addr, char content[], bool readResponse) {
-	TCPSocket remoteObj = new TCPSocket()
+	Response connectAndSend(IPAddr addr, char content[], bool readResponse) {
+		TCPSocket remoteObj = new TCPSocket()
 		Response resp = null
 		if (establishConnection(addr, remoteObj)) {
 			remoteObj.send(content)
@@ -121,20 +127,39 @@ component provides List:heap(Destructor, AdaptEvents) requires data.json.JSONEnc
 		}
 		return resp
 	}
+	
+  	void makeGroupRequest(char content[]) {
+		setupRemoteListsIPs()
+		IPAddr addr = null
+		for (int i = 0; i < remoteListsIps.arrayLength; i++) {
+		  addr = remoteListsIps[i]
+		  asynch::connectAndSend(addr, content, true)
+		}
+	}
+	
+	Response makeRequest(char content[]) {
+		setupRemoteListsIPs()
+		IPAddr addr = null
+		mutex(remoteListsIpsLock) {
+			if (remoteListsIps.arrayLength > 1) {
+				if (pointer == remoteListsIps.arrayLength) { pointer = 0 }
+				addr = remoteListsIps[pointer]
+				pointer++
+			} else { out.println("ERROR!") }
+		}
+		return connectAndSend(addr, content, true)
+	}
 
 	void List:add (store Data item) {
 		Request request = new Request()
-		request.functionName = ADD
+		request.functionName = "add"
 		request.numParams = 1
 
 		char requestStr[] = parser.jsonFromData(request, null)
 		char param[] = parser.jsonFromData(item, null)
 		char content2[] = new char[](requestStr, "!", param, "\r\r\r\r")
 
-		setupRemoteListsIPs()
-		Int num = item
-		IPAddr addr = remoteListsIps[hash.h(num.i, remoteListsIps.arrayLength)]
-		makeRequestSharding(addr, content2, false)
+		makeGroupRequest(content2)
 	}
 
 	void List:remove (Data item) {
@@ -146,10 +171,7 @@ component provides List:heap(Destructor, AdaptEvents) requires data.json.JSONEnc
 		char param[] = parser.jsonFromData(item, null)
 		char content2[] = new char[](requestStr, "!", param, "\r\r\r\r")
 
-		setupRemoteListsIPs()
-		Int num = item
-		IPAddr addr = remoteListsIps[hash.h(num.i, remoteListsIps.arrayLength)]
-		makeRequestSharding(addr, content2, false)
+		makeGroupRequest(content2)
 	}
 
 	void List:update (Data item, store Data newVersion) {
@@ -161,10 +183,7 @@ component provides List:heap(Destructor, AdaptEvents) requires data.json.JSONEnc
 		char param[] = parser.jsonFromData(item, null)
 		char content2[] = new char[](requestStr, "!", param, "\r\r\r\r")
 
-		setupRemoteListsIPs()
-		Int num = item
-		IPAddr addr = remoteListsIps[hash.h(num.i, remoteListsIps.arrayLength)]
-		makeRequestSharding(addr, content2, false)
+		makeGroupRequest(content2)
 	}
 
 	void List:setIndex (int n, store Data d) {
@@ -177,13 +196,8 @@ component provides List:heap(Destructor, AdaptEvents) requires data.json.JSONEnc
 
 		char requestStr[] = parser.jsonFromData(request, null)
 		char content2[] = new char[](requestStr, "!", " ", "\r\r\r\r")
-		setupRemoteListsIPs()
-		Int contents[] = null
-		for (int i = 0; i < remoteListsIps.arrayLength; i++) {
-			Response response = makeRequestSharding(remoteListsIps[i], content2, true)
-			Int nums[] = parser.jsonToArray(response.value, typeof(Int[]), null)
-			contents = new Int[](contents, nums)
-		}
+		Response response = makeRequest(content2)
+		Int nums[] = parser.jsonToArray(response.value, typeof(Int[]), null)
 		return null
 	}
 
@@ -194,31 +208,21 @@ component provides List:heap(Destructor, AdaptEvents) requires data.json.JSONEnc
 
 		char requestStr[] = parser.jsonFromData(request, null)
 		char content2[] = new char[](requestStr, "!", " ", "\r\r\r\r")
-		setupRemoteListsIPs()
-		Int contents[] = null
-		for (int i = 0; i < remoteListsIps.arrayLength; i++) {
-			Response response = makeRequestSharding(remoteListsIps[i], content2, true)
-			Int nums[] = parser.jsonToArray(response.value, typeof(Int[]), null)
-			contents = new Int[](contents, nums)
-		}
+		Response response = makeRequest(content2)
+		Int nums[] = parser.jsonToArray(response.value, typeof(Int[]), null)
 		return 0
 	}
 
 	Data[] List:getContents (opt Type t) {
 		Request request = new Request()
-		request.functionName = GET_CONTENTS
+		request.functionName = "getContents"
 		request.numParams = 0
 
 		char requestStr[] = parser.jsonFromData(request, null)
 		char content2[] = new char[](requestStr, "!", " ", "\r\r\r\r")
-		setupRemoteListsIPs()
-		Int contents[] = null
-		for (int i = 0; i < remoteListsIps.arrayLength; i++) {
-			Response response = makeRequestSharding(remoteListsIps[i], content2, true)
-			Int nums[] = parser.jsonToArray(response.value, typeof(Int[]), null)
-			contents = new Int[](contents, nums)
-		}
-		return contents
+		Response response = makeRequest(content2)
+		Int nums[] = parser.jsonToArray(response.value, typeof(Int[]), null)
+		return nums
 	}
 
 	Data List:getNext () {
@@ -228,13 +232,8 @@ component provides List:heap(Destructor, AdaptEvents) requires data.json.JSONEnc
 
 		char requestStr[] = parser.jsonFromData(request, null)
 		char content2[] = new char[](requestStr, "!", " ", "\r\r\r\r")
-		setupRemoteListsIPs()
-		Int contents[] = null
-		for (int i = 0; i < remoteListsIps.arrayLength; i++) {
-			Response response = makeRequestSharding(remoteListsIps[i], content2, true)
-			Int nums[] = parser.jsonToArray(response.value, typeof(Int[]), null)
-			contents = new Int[](contents, nums)
-		}
+		Response response = makeRequest(content2)
+		Int nums[] = parser.jsonToArray(response.value, typeof(Int[]), null)
 		return null
 	}
 
@@ -245,13 +244,8 @@ component provides List:heap(Destructor, AdaptEvents) requires data.json.JSONEnc
 
 		char requestStr[] = parser.jsonFromData(request, null)
 		char content2[] = new char[](requestStr, "!", " ", "\r\r\r\r")
-		setupRemoteListsIPs()
-		Int contents[] = null
-		for (int i = 0; i < remoteListsIps.arrayLength; i++) {
-			Response response = makeRequestSharding(remoteListsIps[i], content2, true)
-			Int nums[] = parser.jsonToArray(response.value, typeof(Int[]), null)
-			contents = new Int[](contents, nums)
-		}
+		Response response = makeRequest(content2)
+		Int nums[] = parser.jsonToArray(response.value, typeof(Int[]), null)
 		return false
 	}
 
@@ -262,13 +256,8 @@ component provides List:heap(Destructor, AdaptEvents) requires data.json.JSONEnc
 
 		char requestStr[] = parser.jsonFromData(request, null)
 		char content2[] = new char[](requestStr, "!", " ", "\r\r\r\r")
-		setupRemoteListsIPs()
-		Int contents[] = null
-		for (int i = 0; i < remoteListsIps.arrayLength; i++) {
-			Response response = makeRequestSharding(remoteListsIps[i], content2, true)
-			Int nums[] = parser.jsonToArray(response.value, typeof(Int[]), null)
-			contents = new Int[](contents, nums)
-		}
+		Response response = makeRequest(content2)
+		Int nums[] = parser.jsonToArray(response.value, typeof(Int[]), null)
 		return null
 	}
 
@@ -293,37 +282,16 @@ component provides List:heap(Destructor, AdaptEvents) requires data.json.JSONEnc
 		if (content != null) {
 			content = getContents()
 			char msg[] = new char[]("clearList!\r\r\r\r")
-			
-			setupRemoteDistsIPs()
-			for (int i = 0; i < remoteDistsIps.arrayLength; i++) {
-				makeRequestSharding(remoteDistsIps[i], msg, true)
-			}
+			sendMsgToRemoteDists(msg)
 		}
 	}
 
 	// this is extremely hardcoded! ):
 	void AdaptEvents:active() {
 		if (content != null) {
-			setupRemoteDistsIPs()
-			ShardState shardState[] = new ShardState[remoteDistsIps.arrayLength]
-			Thread thread[] = new Thread[remoteDistsIps.arrayLength]
-			for (int i = 0; i < content.arrayLength; i++) {
-				Int num = content[i]
-				int remoteIdx = hash.h(num.i, remoteDistsIps.arrayLength)
-				if (shardState[remoteIdx] == null) {
-					shardState[remoteIdx] = new ShardState()
-				}
-				shardState[remoteIdx].state = new Int[](shardState[remoteIdx].state, num)
-			}
-			for (int i = 0; i < remoteDistsIps.arrayLength; i++) {
-				char state[] = parser.jsonFromArray(shardState[i].state, null)
-				char msg[] = new char[]("../distributor/RemoteList.o!", state, "\r\r\r\r")
-				thread[i] = asynch::makeRequestSharding(remoteDistsIps[i], msg, true)
-			}
-			for (int i = 0; i < remoteDistsIps.arrayLength; i++) {
-				thread[i].join()
-			}
-			
+			char state[] = parser.jsonFromArray(content, null)
+			char msg[] = new char[]("../distributor/RemoteList.o!", state, "\r\r\r\r")
+			sendMsgToRemoteDists(msg)
 		}
 	}
 }

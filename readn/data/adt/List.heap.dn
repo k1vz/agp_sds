@@ -5,6 +5,7 @@ data Node {
 component provides data.adt.List:heap(Destructor, AdaptEvents) requires io.Output out, data.IntUtil iu {
 	Node heap[] = null
 	int length = 0
+	int FATOR = 1000
 	Mutex heapLock = new Mutex()
 
 	/*
@@ -27,29 +28,34 @@ component provides data.adt.List:heap(Destructor, AdaptEvents) requires io.Outpu
 				result = new char[](result, " ", iu.intToString(heap[i].key))
 			}
 			result = new char[](result, " ]")
-			out.println("$(result)")
+			// out.println("$(result)")
 		}
 	}
 
 	/*
 	 * Remove a node from heap.
 	 */
-	void List:remove(Data item) {
-		mutex(heapLock) {
-			Node itemToRemove = item
-			for (int i = 0; i < length; i++) {
-				if (heap[i] == itemToRemove) {
-					int j = i
-					while (j < length - 1) {
-						heap[j] = heap[j+1]
-						j++
-					}
-					break
+    void List:remove(Data item) {
+        mutex(heapLock) {
+			Node node = item
+			Node newArray[] = null
+
+			for (int i = 0; i < heap.arrayLength; i++) {
+				if (heap[i].key != node.key) {
+					newArray = new Node[](newArray, heap[i])
+				} else {
+            		length--
 				}
 			}
-			length--
+			heap = newArray
+        }
+		char result[] = new char[]("[")
+		for (int i = 0; i < heap.arrayLength; i++) {
+			result = new char[](result, " ", iu.intToString(heap[i].key))
 		}
-	}
+		result = new char[](result, " ]")
+		out.println("$(result)")
+    }
 
 	void List:update(Data item, Data newVersion) {
 		// TODO
@@ -99,6 +105,16 @@ component provides data.adt.List:heap(Destructor, AdaptEvents) requires io.Outpu
 	 * Note that we return the contents ordered using
 	 * heapsort. That means processing time on read operations.
 	 */
+	bool iteracoes(int i) {
+		bool resultado = false
+		for (int j = 2; j < i; j++) {
+			if (i%j == 0) {
+				resultado = true
+			}
+		}
+		return resultado
+	}
+
 	Data[] List:getContents(opt Type t) {
 		mutex(heapLock) {
 			if (heap == null) { 
@@ -112,7 +128,10 @@ component provides data.adt.List:heap(Destructor, AdaptEvents) requires io.Outpu
 				items = new Data[length]
 			}
 			for (int i = 0; i < length; i++) {
-				items[i] = sortedHeapCopy[i]
+                items[i] = sortedHeapCopy[i]
+            }
+			for (int i = 0; i < length; i++) {
+				iteracoes(length * FATOR)
 			}
 			return items
 		}
