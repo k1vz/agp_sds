@@ -1,0 +1,40 @@
+component provides App requires io.Output out, net.http.HTTPRequest http {
+	char server[] = "localhost"
+
+	int App:main(AppParam params[]) {
+		
+
+		HTTPResponse resp = http.post(new char[]("http://", server, ":8080/add"), null, new char[]("7"))
+		out.println("$(resp.content)")
+		
+		resp = http.post(new char[]("http://", server, ":8080/add"), null, new char[]("8"))
+		out.println("$(resp.content)")
+		
+		resp = http.post(new char[]("http://", server, ":8080/add"), null, new char[]("9"))
+		out.println("$(resp.content)")
+		
+		resp = http.post(new char[]("http://", server, ":8080/add"), null, new char[]("10"))
+		out.println("$(resp.content)")
+		
+		resp = http.post(new char[]("http://", server, ":8080/add"), null, new char[]("11"))
+		out.println("$(resp.content)")
+		
+		resp = http.post(new char[]("http://", server, ":8080/add"), null, new char[]("12"))
+		out.println("$(resp.content)")
+		
+		resp = http.post(new char[]("http://", server, ":8080/add"), null, new char[]("13"))
+		out.println("$(resp.content)")
+		
+		resp = http.post(new char[]("http://", server, ":8080/add"), null, new char[]("14"))
+		out.println("$(resp.content)")
+
+        resp = http.post(new char[]("http://", server, ":8080/add"), null, new char[]("15"))
+		out.println("$(resp.content)")
+		
+		resp = http.post(new char[]("http://", server, ":8080/add"), null, new char[]("16"))
+		out.println("$(resp.content)")
+
+		
+		return 0
+	}
+}

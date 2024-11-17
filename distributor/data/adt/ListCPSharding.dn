@@ -41,6 +41,7 @@ component provides List:heap(Destructor, AdaptEvents) requires data.json.JSONEnc
 {
 	IPAddr remoteDistsIps[] = null
 	IPAddr remoteListsIps[] = null
+	int toggleContents = 1
 
 	void setupRemoteDistsIPs() {
 		if (remoteDistsIps == null) {
@@ -205,7 +206,7 @@ component provides List:heap(Destructor, AdaptEvents) requires data.json.JSONEnc
 	}
 
 	Data[] List:getContents (opt Type t) {
-		Request request = new Request()
+		/*Request request = new Request()
 		request.functionName = GET_CONTENTS
 		request.numParams = 0
 
@@ -218,6 +219,25 @@ component provides List:heap(Destructor, AdaptEvents) requires data.json.JSONEnc
 			Int nums[] = parser.jsonToArray(response.value, typeof(Int[]), null)
 			contents = new Int[](contents, nums)
 		}
+		return contents*/
+
+		Request request = new Request()
+		request.functionName = GET_CONTENTS
+		request.numParams = 0
+
+		char requestStr[] = parser.jsonFromData(request, null)
+		char content2[] = new char[](requestStr, "!", " ", "\r\r\r\r")
+		setupRemoteListsIPs()
+		Int contents[] = null
+
+		if (toggleContents == 1) { toggleContents = 2 }
+		else { toggleContents = 1 }
+		
+		IPAddr addr = remoteListsIps[hash.h(toggleContents, remoteListsIps.arrayLength)]
+		Response response = makeRequestSharding(addr, content2, true)
+		Int nums[] = parser.jsonToArray(response.value, typeof(Int[]), null)
+		contents = new Int[](contents, nums)
+
 		return contents
 	}
 

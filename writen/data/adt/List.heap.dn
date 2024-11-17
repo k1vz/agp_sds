@@ -5,6 +5,7 @@ data Node {
 component provides data.adt.List:heap(Destructor, AdaptEvents) requires io.Output out, data.IntUtil iu {
 
   Node heap[] = null
+  int FATOR = 1000
   int length = 0
   Mutex heapLock = new Mutex()
 
@@ -15,36 +16,66 @@ component provides data.adt.List:heap(Destructor, AdaptEvents) requires io.Outpu
    * on inserts. That means processing time
    * on write operations.
    */
-    void List:add(Data item) {
-        mutex(heapLock) {
-            if (length == 0) {
-                heap = new Node[]()
-            }
-            // Insert at the end (this will 
-            // violate the heap property)
-            Node node = item
-            heap = new Node[](heap, node)
-            length++
-            // shift up the nodes until the heap  
-            // property has been reestablished
-            int idx = length - 1
-            int parentIdx = (idx - 1) / 2
-            while (idx > 0 && heap[parentIdx].key < heap[idx].key) {
-                Node aux = heap[parentIdx]
-                heap[parentIdx] = heap[idx]
-                heap[idx] = aux
+    // void List:add(Data item) {
+    //     mutex(heapLock) {
+    //         if (length == 0) {
+    //             heap = new Node[]()
+    //         }
+    //         // Insert at the end (this will 
+    //         // violate the heap property)
+    //         Node node = item
+    //         heap = new Node[](heap, node)
+    //         length++
+    //         // shift up the nodes until the heap  
+    //         // property has been reestablished
+    //         int idx = length - 1
+    //         int parentIdx = (idx - 1) / 2
+    //         while (idx > 0 && heap[parentIdx].key < heap[idx].key) {
+    //             Node aux = heap[parentIdx]
+    //             heap[parentIdx] = heap[idx]
+    //             heap[idx] = aux
 
-                idx = parentIdx
-                parentIdx = (idx - 1) / 2
-            }
-            char result[] = new char[]("[")
+    //             idx = parentIdx
+    //             parentIdx = (idx - 1) / 2
+    //         }
+    //         char result[] = new char[]("[")
+    //         for (int i = 0; i < length; i++) {
+    //             result = new char[](result, " ", iu.intToString(heap[i].key))
+    //         }
+    //         result = new char[](result, " ]")
+    //         out.println("$(result)")
+    //     }
+    // }
+
+    bool iteracoes(int i) {
+		bool resultado = false
+		for (int j = 2; j < i; j++) {
+			if (i%j == 0) {
+				resultado = true
+			}
+		}
+		return resultado
+	}
+
+    void List:add(Data item) {   
+		mutex(heapLock) {
+			if (length == 0) {
+				heap = new Node[]()
+			}
+			Node node = item
+			heap = new Node[](heap, node)
+			length++
+			char result[] = new char[]("[")
+			for (int i = 0; i < length; i++) {
+				result = new char[](result, " ", iu.intToString(heap[i].key))
+			}
             for (int i = 0; i < length; i++) {
-                result = new char[](result, " ", iu.intToString(heap[i].key))
-            }
-            result = new char[](result, " ]")
-            out.println("$(result)")
-        }
-    }
+				iteracoes(length * FATOR)
+			}
+			result = new char[](result, " ]")
+			// out.println("$(result)")
+		}
+	}
 
     /*
     * Remove a node from heap.
